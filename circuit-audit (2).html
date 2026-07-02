@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Circuit Audit — Routesetting</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f5f5f4;
+    --bg-tertiary: #efefed;
+    --text: #1a1a18;
+    --text-secondary: #6b6b67;
+    --border: rgba(0,0,0,0.12);
+    --border-strong: rgba(0,0,0,0.25);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --danger-bg: #fcebeb;
+    --danger-text: #a32d2d;
+    --danger-border: rgba(163,45,45,0.3);
+    --success-bg: #eaf3de;
+    --success-text: #3b6d11;
+    --success-border: rgba(59,109,17,0.3);
+    --warn-bg: #faeeda;
+    --warn-text: #854f0b;
+    --warn-border: rgba(133,79,11,0.3);
+    --info-bg: #e6f1fb;
+    --info-text: #185fa5;
+    --info-border: rgba(24,95,165,0.3);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg-secondary: #252523;
+      --bg-tertiary: #2e2e2b;
+      --text: #f0ede8;
+      --text-secondary: #9b9992;
+      --border: rgba(255,255,255,0.1);
+      --border-strong: rgba(255,255,255,0.22);
+      --danger-bg: #2d1212;
+      --danger-text: #f09595;
+      --danger-border: rgba(240,149,149,0.25);
+      --success-bg: #172404;
+      --success-text: #97c459;
+      --success-border: rgba(151,196,89,0.25);
+      --warn-bg: #2a1800;
+      --warn-text: #fac775;
+      --warn-border: rgba(250,199,117,0.25);
+      --info-bg: #042c53;
+      --info-text: #85b7eb;
+      --info-border: rgba(133,183,235,0.25);
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-tertiary);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 1rem;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .container {
+    max-width: 560px;
+    margin: 0 auto;
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border: 0.5px solid var(--border);
+  }
+
+  .app-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .app-header-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--text);
+    color: var(--bg);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .app-header h1 {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .app-header p {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .step { display: none; }
+  .step.active { display: block; }
+
+  .section-head { font-size: 15px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
+  .muted { font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: 8px;
+  }
+
+  .field-row { margin-bottom: 14px; }
+  .field-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 5px; }
+
+  input[type=text], select, textarea {
+    width: 100%;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--bg-secondary);
+    color: var(--text);
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color .15s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b67' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+    cursor: pointer;
+  }
+
+  input[type=text]:focus, select:focus, textarea:focus {
+    border-color: var(--text);
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+  }
+
+  textarea { min-height: 72px; resize: vertical; }
+
+  .toggle-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .toggle {
+    font-size: 12px;
+    padding: 6px 11px;
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    background: var(--bg);
+    color: var(--text-secondary);
+    transition: all .15s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .toggle:active { transform: scale(.97); }
+  .toggle.active { background: var(--info-bg); border-color: var(--info-border); color: var(--info-text); }
+  .toggle.danger.active { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger-text); }
+  .toggle.success.active { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
+  .toggle.warn.active { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-text); }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; margin-bottom: 1.5rem; }
+  .progress-fill { height: 100%; border-radius: 2px; background: var(--text); transition: width .3s; }
+
+  .card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 12px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0;
+  }
+
+  .climb-number {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .climb-body { margin-top: 14px; }
+
+  .collapse-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-secondary); font-size: 13px;
+    display: flex; align-items: center; gap: 4px; padding: 4px;
+    border-radius: 4px;
+  }
+  .collapse-btn:hover { background: var(--bg-secondary); }
+  .collapse-btn i { transition: transform .2s; font-size: 16px; }
+
+  .star-row { display: flex; gap: 8px; }
+  .star {
+    font-size: 26px; cursor: pointer;
+    color: var(--border-strong);
+    line-height: 1; transition: color .1s;
+    user-select: none; -webkit-user-select: none;
+  }
+  .star.active { color: #EF9F27; }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 1.25rem; }
+  .btn {
+    flex: 1; padding: 11px;
+    font-size: 14px; font-family: inherit;
+    border-radius: var(--radius-md); cursor: pointer;
+    border: 0.5px solid var(--border-strong);
+    background: var(--bg); color: var(--text);
+    transition: all .15s;
+  }
+  .btn:hover { background: var(--bg-secondary); }
+  .btn:active { transform: scale(.98); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: transparent; }
+  .btn.primary:hover { opacity: .88; }
+
+  .summary-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 12px;
+  }
+
+  .summary-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 7px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 13px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+
+  .chip-wrap { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+  .chip {
+    font-size: 11px; padding: 2px 8px; border-radius: 20px;
+    background: var(--bg-tertiary); color: var(--text-secondary);
+  }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 20px;
+  }
+  .pill.fav { background: var(--warn-bg); color: var(--warn-text); }
+  .pill.easy { background: var(--success-bg); color: var(--success-text); }
+  .pill.hard { background: var(--danger-bg); color: var(--danger-text); }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .stat-cell {
+    background: var(--bg); border-radius: var(--radius-md);
+    padding: .75rem; text-align: center;
+    border: 0.5px solid var(--border);
+  }
+  .stat-cell p:first-child { font-size: 11px; color: var(--text-secondary); margin-bottom: 2px; }
+  .stat-cell p:last-child { font-size: 22px; font-weight: 500; }
+
+  .safety-card {
+    border-color: var(--danger-border) !important;
+    background: var(--danger-bg);
+  }
+
+  .toast {
+    position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: var(--bg);
+    padding: 10px 20px; border-radius: var(--radius-md);
+    font-size: 13px; font-weight: 500;
+    opacity: 0; transition: opacity .2s;
+    pointer-events: none; white-space: nowrap;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="app-header">
+    <div class="app-header-icon"><i class="ti ti-mountain" aria-hidden="true"></i></div>
+    <div>
+      <h1>Circuit Audit</h1>
+      <p>Routesetting assessment tool</p>
+    </div>
+  </div>
+
+  <!-- STEP 1: SETUP -->
+  <div id="step-setup" class="step active">
+    <p class="section-head">New circuit audit</p>
+    <p class="muted">Set up the session before climbing</p>
+
+    <div class="field-row">
+      <p class="section-label">Audit type</p>
+      <div class="toggle-row" id="type-row">
+        <div class="toggle active" data-val="Boulder" onclick="setToggleExclusive(this,'type-row')">Boulder</div>
+        <div class="toggle" data-val="Route" onclick="setToggleExclusive(this,'type-row')">Route</div>
+      </div>
+    </div>
+
+    <div class="field-row" id="circuit-wrap">
+      <p class="section-label">Boulder circuit</p>
+      <div class="toggle-row" id="circuit-row">
+        <div class="toggle" style="background:#FFD700;color:#7a5c00;border-color:#d4a800" data-val="Yellow" onclick="setToggleExclusive(this,'circuit-row')">Yellow</div>
+        <div class="toggle active" style="background:#4CAF50;color:#fff;border-color:#3d9142" data-val="Green" onclick="setToggleExclusive(this,'circuit-row')">Green</div>
+        <div class="toggle" style="background:#2196F3;color:#fff;border-color:#1a7dd4" data-val="Blue" onclick="setToggleExclusive(this,'circuit-row')">Blue</div>
+        <div class="toggle" style="background:#f44336;color:#fff;border-color:#d43025" data-val="Red" onclick="setToggleExclusive(this,'circuit-row')">Red</div>
+        <div class="toggle" style="background:#FF9800;color:#fff;border-color:#e08600" data-val="Orange" onclick="setToggleExclusive(this,'circuit-row')">Orange</div>
+        <div class="toggle" style="background:#9C27B0;color:#fff;border-color:#7b1f8c" data-val="Purple" onclick="setToggleExclusive(this,'circuit-row')">Purple</div>
+        <div class="toggle" style="background:#2c2c2c;color:#fff;border-color:#111" data-val="Black" onclick="setToggleExclusive(this,'circuit-row')">Black</div>
+      </div>
+    </div>
+
+    <div class="field-row" id="grade-wrap" style="display:none">
+      <p class="section-label">Route grade</p>
+      <div class="toggle-row" id="grade-row">
+        <div class="toggle" data-val="5" onclick="setToggleExclusive(this,'grade-row')">5</div>
+        <div class="toggle" data-val="6" onclick="setToggleExclusive(this,'grade-row')">6</div>
+        <div class="toggle" data-val="7" onclick="setToggleExclusive(this,'grade-row')">7</div>
+        <div class="toggle" data-val="8" onclick="setToggleExclusive(this,'grade-row')">8</div>
+        <div class="toggle" data-val="9" onclick="setToggleExclusive(this,'grade-row')">9</div>
+        <div class="toggle active" data-val="10" onclick="setToggleExclusive(this,'grade-row')">10</div>
+        <div class="toggle" data-val="11" onclick="setToggleExclusive(this,'grade-row')">11</div>
+        <div class="toggle" data-val="12" onclick="setToggleExclusive(this,'grade-row')">12</div>
+        <div class="toggle" data-val="13" onclick="setToggleExclusive(this,'grade-row')">13</div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <p class="section-label">Setter name</p>
+      <input type="text" id="setter-name" placeholder="Your name" />
+    </div>
+    <div class="field-row">
+      <p class="section-label">Audit date</p>
+      <input type="text" id="audit-date" />
+    </div>
+    <div class="field-row">
+      <p class="section-label">Number of climbs to audit</p>
+      <select id="climb-count"></select>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" onclick="startAudit()">Start audit <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+    </div>
+  </div>
+
+  <!-- STEP 2: CLIMB CARDS -->
+  <div id="step-climbs" class="step">
+    <div class="progress-bar"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+    <p class="section-head" id="audit-title"></p>
+    <p class="muted" id="audit-sub"></p>
+    <div id="climb-cards"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="goStep('step-setup')"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+      <button class="btn primary" onclick="goSummary()">Circuit notes <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+    </div>
+  </div>
+
+  <!-- STEP 3: CIRCUIT NOTES -->
+  <div id="step-circuit" class="step">
+    <div class="progress-bar"><div class="progress-fill" style="width:66%"></div></div>
+    <p class="section-head">Circuit-level assessment</p>
+    <p class="muted">Reflect on the whole circuit as a set</p>
+
+    <div class="card">
+      <p class="section-label">Overall grading consistency</p>
+      <div class="toggle-row" id="consistency-row">
+        <div class="toggle success" data-val="Consistent" onclick="setToggleExclusive(this,'consistency-row')">Consistent</div>
+        <div class="toggle warn" data-val="Mostly consistent" onclick="setToggleExclusive(this,'consistency-row')">Mostly consistent</div>
+        <div class="toggle danger" data-val="Inconsistent" onclick="setToggleExclusive(this,'consistency-row')">Inconsistent</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Accessibility of the circuit</p>
+      <div class="toggle-row" id="access-row">
+        <div class="toggle success" data-val="Very accessible" onclick="setToggleExclusive(this,'access-row')">Very accessible</div>
+        <div class="toggle" data-val="Accessible" onclick="setToggleExclusive(this,'access-row')">Accessible</div>
+        <div class="toggle warn" data-val="Somewhat limited" onclick="setToggleExclusive(this,'access-row')">Somewhat limited</div>
+        <div class="toggle danger" data-val="Exclusionary" onclick="setToggleExclusive(this,'access-row')">Exclusionary</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Movement variety across circuit</p>
+      <div class="toggle-row" id="variety-row">
+        <div class="toggle success" data-val="Excellent" onclick="setToggleExclusive(this,'variety-row')">Excellent</div>
+        <div class="toggle" data-val="Good" onclick="setToggleExclusive(this,'variety-row')">Good</div>
+        <div class="toggle warn" data-val="Limited" onclick="setToggleExclusive(this,'variety-row')">Limited</div>
+        <div class="toggle danger" data-val="Poor" onclick="setToggleExclusive(this,'variety-row')">Poor</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Hold &amp; volume diversity</p>
+      <div class="toggle-row" id="holds-row">
+        <div class="toggle success" data-val="Diverse" onclick="setToggleExclusive(this,'holds-row')">Diverse</div>
+        <div class="toggle" data-val="Adequate" onclick="setToggleExclusive(this,'holds-row')">Adequate</div>
+        <div class="toggle warn" data-val="Repetitive" onclick="setToggleExclusive(this,'holds-row')">Repetitive</div>
+        <div class="toggle danger" data-val="Very repetitive" onclick="setToggleExclusive(this,'holds-row')">Very repetitive</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Missing moves / skillsets</p>
+      <div class="toggle-row" id="missing-row">
+        <div class="toggle" data-val="Slopers" onclick="setToggleMulti(this)">Slopers</div>
+        <div class="toggle" data-val="Pinches" onclick="setToggleMulti(this)">Pinches</div>
+        <div class="toggle" data-val="Crimps" onclick="setToggleMulti(this)">Crimps</div>
+        <div class="toggle" data-val="Pockets" onclick="setToggleMulti(this)">Pockets</div>
+        <div class="toggle" data-val="Dynamic" onclick="setToggleMulti(this)">Dynamic</div>
+        <div class="toggle" data-val="Static" onclick="setToggleMulti(this)">Static</div>
+        <div class="toggle" data-val="Coordination" onclick="setToggleMulti(this)">Coordination</div>
+        <div class="toggle" data-val="Footwork" onclick="setToggleMulti(this)">Footwork</div>
+        <div class="toggle" data-val="Compression" onclick="setToggleMulti(this)">Compression</div>
+        <div class="toggle" data-val="Balance" onclick="setToggleMulti(this)">Balance</div>
+        <div class="toggle" data-val="Overhang" onclick="setToggleMulti(this)">Overhang</div>
+        <div class="toggle" data-val="Slab" onclick="setToggleMulti(this)">Slab</div>
+        <div class="toggle" data-val="Heel hooks" onclick="setToggleMulti(this)">Heel hooks</div>
+        <div class="toggle" data-val="Toe hooks" onclick="setToggleMulti(this)">Toe hooks</div>
+        <div class="toggle" data-val="Mantling" onclick="setToggleMulti(this)">Mantling</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Additional circuit notes</p>
+      <textarea id="circuit-notes" placeholder="Overall observations, patterns, what worked, what didn't..."></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" onclick="goStep('step-climbs')"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+      <button class="btn primary" onclick="goStep('step-summary')">Review summary <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+    </div>
+  </div>
+
+  <!-- STEP 4: SUMMARY -->
+  <div id="step-summary" class="step">
+    <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+    <p class="section-head">Audit summary</p>
+    <p class="muted">Review before exporting</p>
+    <div id="summary-content"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="goStep('step-circuit')"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+      <button class="btn primary" id="save-btn" onclick="exportAudit()"><i class="ti ti-cloud-upload" aria-hidden="true"></i> Save to Sheets</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-secondary);margin-top:.75rem;text-align:center">Saves to Google Sheets and copies a text report to your clipboard</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Init ──────────────────────────────────────────────
+(function(){
+  var sel = document.getElementById('climb-count');
+  for(var n = 1; n <= 25; n++){
+    var opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    if(n === 10) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  var d = new Date();
+  document.getElementById('audit-date').value = d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  document.querySelectorAll('#type-row .toggle').forEach(function(t){
+    t.addEventListener('click', function(){
+      var isRoute = this.dataset.val === 'Route';
+      document.getElementById('circuit-wrap').style.display = isRoute ? 'none' : 'block';
+      document.getElementById('grade-wrap').style.display = isRoute ? 'block' : 'none';
+    });
+  });
+})();
+
+var auditData = {type:'Boulder',circuit:'Green',grade:'10',setter:'',date:'',climbCount:10,climbs:[]};
+
+var BOULDER_AREAS = [
+  'Back Boulder',
+  'Main Boulder \u2013 North','Main Boulder \u2013 Northeast','Main Boulder \u2013 Northwest',
+  'Main Boulder \u2013 South','Main Boulder \u2013 Southeast','Main Boulder \u2013 Southwest'
+];
+var ROUTE_ANCHORS = (function(){
+  var a = [];
+  for(var n=1;n<=41;n++) a.push(String(n));
+  return a.concat(['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q']);
+})();
+
+// ── Toggle helpers ────────────────────────────────────
+function setToggleExclusive(el, rowId){
+  document.querySelectorAll('#'+rowId+' .toggle').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+}
+function setToggleMulti(el){ el.classList.toggle('active'); }
+function getActive(rowId){
+  var a = document.querySelector('#'+rowId+' .toggle.active');
+  return a ? a.dataset.val : '';
+}
+function getMultiActive(rowId){
+  return Array.from(document.querySelectorAll('#'+rowId+' .toggle.active')).map(function(t){ return t.dataset.val; });
+}
+
+// ── Navigation ────────────────────────────────────────
+function goStep(id){
+  document.querySelectorAll('.step').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+  if(id === 'step-summary') buildSummary();
+}
+
+// ── Start audit ───────────────────────────────────────
+function startAudit(){
+  auditData.type    = getActive('type-row') || 'Boulder';
+  auditData.circuit = getActive('circuit-row') || 'Green';
+  auditData.grade   = getActive('grade-row') || '10';
+  auditData.setter  = document.getElementById('setter-name').value.trim() || 'Unnamed setter';
+  auditData.date    = document.getElementById('audit-date').value.trim() || new Date().toDateString();
+  auditData.climbCount = parseInt(document.getElementById('climb-count').value) || 10;
+  auditData.climbs  = [];
+  buildClimbCards();
+  var label = auditData.type === 'Boulder' ? auditData.circuit+' circuit' : 'Grade '+auditData.grade+' routes';
+  document.getElementById('audit-title').textContent = label+' audit';
+  document.getElementById('audit-sub').textContent   = auditData.setter+' \u00b7 '+auditData.date;
+  goStep('step-climbs');
+}
+
+// ── Build climb cards ─────────────────────────────────
+var circuitColors = {Yellow:'#FFD700',Green:'#4CAF50',Blue:'#2196F3',Red:'#f44336',Orange:'#FF9800',Purple:'#9C27B0',Black:'#2c2c2c'};
+
+function buildClimbCards(){
+  var container = document.getElementById('climb-cards');
+  container.innerHTML = '';
+  var isBoulder = auditData.type === 'Boulder';
+  var locationOpts = isBoulder ? BOULDER_AREAS : ROUTE_ANCHORS;
+  var badgeBg    = isBoulder ? (circuitColors[auditData.circuit]||'#888') : 'var(--bg-secondary)';
+  var badgeColor = isBoulder ? (auditData.circuit==='Yellow'?'#7a5c00':'#fff') : 'var(--text-secondary)';
+
+  for(var i=0; i<auditData.climbCount; i++){
+    auditData.climbs.push({id:i+1,location:'',quality:0,grading:'',movement:[],holds:[],safety:[],flags:[],notes:''});
+    var div = document.createElement('div');
+    div.className = 'card'; div.id = 'climb-card-'+i;
+    div.innerHTML = buildClimbHTML(i, badgeBg, badgeColor, locationOpts);
+    container.appendChild(div);
+  }
+  updateProgress();
+}
+
+function buildClimbHTML(i, badgeBg, badgeColor, locationOpts){
+  var locOpts = '<option value="">&#8212; select &#8212;</option>';
+  for(var k=0; k<locationOpts.length; k++)
+    locOpts += '<option value="'+locationOpts[k]+'">'+locationOpts[k]+'</option>';
+
+  var stars = '';
+  for(var s=1; s<=5; s++)
+    stars += '<span class="star" data-n="'+s+'" onclick="setStars('+i+','+s+')">&#9733;</span>';
+
+  var movements = ['Dynamic','Static','Coordination','Footwork','Compression','Balance','Power','Momentum','Heel hook','Toe hook','Mantling'];
+  var movToggles = movements.map(function(m){
+    return '<div class="toggle" data-val="'+m+'" onclick="setToggleMulti(this)">'+m+'</div>';
+  }).join('');
+
+  var holdTypes = ['Crimps','Slopers','Pinches','Jugs','Pockets','Edges','Volumes','Macros'];
+  var holdToggles = holdTypes.map(function(h){
+    return '<div class="toggle" data-val="'+h+'" onclick="setToggleMulti(this)">'+h+'</div>';
+  }).join('');
+
+  var safetyItems = [
+    {val:'Bad fall zone',cls:'danger'},
+    {val:'Missing screw',cls:'danger'},
+    {val:'Broken hold',cls:'danger'},
+    {val:'Sharp hold',cls:'danger'},
+    {val:'Confusing tag',cls:'warn'},
+    {val:'Broken beta',cls:'warn'}
+  ];
+  var safetyToggles = safetyItems.map(function(s){
+    return '<div class="toggle '+s.cls+'" data-val="'+s.val+'" onclick="setToggleMulti(this)">'+s.val+'</div>';
+  }).join('');
+
+  return '<div class="card-header">'
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<div class="climb-number" style="background:'+badgeBg+';color:'+badgeColor+'">'+(i+1)+'</div>'
+    +'<span style="font-size:14px;font-weight:500" id="climb-label-'+i+'">Climb '+(i+1)+'</span>'
+    +'</div>'
+    +'<button class="collapse-btn" onclick="toggleCollapse('+i+')" aria-label="Toggle climb '+(i+1)+'">'
+    +'<i class="ti ti-chevron-down" id="chevron-'+i+'" aria-hidden="true"></i></button>'
+    +'</div>'
+    +'<div class="climb-body" id="climb-body-'+i+'" style="'+(i>0?'display:none':'')+'">'
+
+    +'<div class="field-row"><p class="field-label">Location / ID</p>'
+    +'<select onchange="updateClimbField('+i+',\'location\',this.value);updateLabel('+i+')">'+locOpts+'</select></div>'
+
+    +'<div class="field-row"><p class="field-label">Quality rating</p>'
+    +'<div class="star-row" id="stars-'+i+'">'+stars+'</div></div>'
+
+    +'<div class="field-row"><p class="field-label">Grading feel</p>'
+    +'<div class="toggle-row" id="grading-'+i+'">'
+    +'<div class="toggle success" data-val="Soft" onclick="setToggleExclusive(this,\'grading-'+i+'\');updateClimbField('+i+',\'grading\',\'Soft\')">Soft</div>'
+    +'<div class="toggle" data-val="On" onclick="setToggleExclusive(this,\'grading-'+i+'\');updateClimbField('+i+',\'grading\',\'On grade\')">On grade</div>'
+    +'<div class="toggle danger" data-val="Hard" onclick="setToggleExclusive(this,\'grading-'+i+'\');updateClimbField('+i+',\'grading\',\'Hard\')">Hard</div>'
+    +'</div></div>'
+
+    +'<div class="field-row"><p class="field-label">Movement types present</p>'
+    +'<div class="toggle-row" id="movement-'+i+'">'+movToggles+'</div></div>'
+
+    +'<div class="field-row"><p class="field-label">Hold types used</p>'
+    +'<div class="toggle-row" id="holdtypes-'+i+'">'+holdToggles+'</div></div>'
+
+    +'<div class="field-row"><p class="field-label">Flags</p>'
+    +'<div class="toggle-row">'
+    +'<div class="toggle warn" data-flag="favourite" onclick="setFlag('+i+',this)"><i class="ti ti-star" aria-hidden="true"></i> Favourite</div>'
+    +'<div class="toggle danger" data-flag="outlier-easy" onclick="setFlag('+i+',this)">Outlier \u2014 too easy</div>'
+    +'<div class="toggle danger" data-flag="outlier-hard" onclick="setFlag('+i+',this)">Outlier \u2014 too hard</div>'
+    +'</div></div>'
+
+    +'<div class="field-row"><p class="field-label">Safety concerns</p>'
+    +'<div class="toggle-row" id="safety-'+i+'">'+safetyToggles+'</div></div>'
+
+    +'<div class="field-row"><p class="field-label">Notes on this climb</p>'
+    +'<textarea id="notes-'+i+'" placeholder="Specific moves, justification for flags, what to change..." '
+    +'oninput="updateClimbField('+i+',\'notes\',this.value)"></textarea></div>'
+    +'</div>';
+}
+
+function toggleCollapse(i){
+  var body = document.getElementById('climb-body-'+i);
+  var chev = document.getElementById('chevron-'+i);
+  var open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  chev.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function updateLabel(i){
+  var loc = document.getElementById('climb-card-'+i).querySelector('select').value;
+  if(loc) document.getElementById('climb-label-'+i).textContent = 'Climb '+(i+1)+' \u2014 '+loc;
+}
+function updateClimbField(i,field,val){ auditData.climbs[i][field]=val; updateProgress(); }
+function setStars(i,n){
+  auditData.climbs[i].quality = n;
+  document.querySelectorAll('#stars-'+i+' .star').forEach(function(s,j){ s.classList.toggle('active',j<n); });
+  updateProgress();
+}
+function setFlag(i,el){
+  var flag = el.dataset.flag;
+  el.classList.toggle('active');
+  var arr = auditData.climbs[i].flags;
+  var idx = arr.indexOf(flag);
+  if(idx>-1) arr.splice(idx,1); else arr.push(flag);
+}
+function updateProgress(){
+  var rated = auditData.climbs.filter(function(c){ return c.quality>0; }).length;
+  document.getElementById('prog').style.width = Math.round((rated/auditData.climbCount)*100)+'%';
+}
+
+// ── Collect all climb data from DOM ───────────────────
+function collectClimbData(){
+  auditData.climbs.forEach(function(c,i){
+    c.movement = getMultiActive('movement-'+i);
+    c.holds    = getMultiActive('holdtypes-'+i);
+    c.safety   = getMultiActive('safety-'+i);
+    c.notes    = (document.getElementById('notes-'+i)||{value:''}).value.trim();
+    c.grading  = getActive('grading-'+i);
+    c.location = (document.getElementById('climb-card-'+i).querySelector('select')||{value:''}).value;
+  });
+}
+function goSummary(){ collectClimbData(); goStep('step-circuit'); }
+
+// ── Build summary ─────────────────────────────────────
+function buildSummary(){
+  collectClimbData();
+  var climbs=auditData.climbs, type=auditData.type, circuit=auditData.circuit, grade=auditData.grade,
+      setter=auditData.setter, date=auditData.date, count=auditData.climbCount;
+  var total = climbs.reduce(function(a,c){ return a+c.quality; },0);
+  var avg   = (total/count).toFixed(1);
+  var favs  = climbs.filter(function(c){ return c.flags.indexOf('favourite')>-1; });
+  var easy  = climbs.filter(function(c){ return c.flags.indexOf('outlier-easy')>-1; });
+  var hard  = climbs.filter(function(c){ return c.flags.indexOf('outlier-hard')>-1; });
+  var safe  = climbs.filter(function(c){ return c.safety.length>0; });
+  var badgeBg    = type==='Boulder' ? (circuitColors[circuit]||'#888') : 'var(--bg-secondary)';
+  var badgeColor = type==='Boulder' ? (circuit==='Yellow'?'#7a5c00':'#fff') : 'var(--text-secondary)';
+  var label = type==='Boulder' ? circuit+' circuit' : 'Grade '+grade;
+  var cons=getActive('consistency-row'), acc=getActive('access-row'),
+      variety=getActive('variety-row'), holds=getActive('holds-row');
+  var missing=getMultiActive('missing-row');
+  var circNotes=document.getElementById('circuit-notes').value.trim();
+
+  var h = '';
+
+  // Header card
+  h += '<div class="summary-card">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+    +'<div style="width:36px;height:36px;border-radius:50%;background:'+badgeBg+';color:'+badgeColor+';display:flex;align-items:center;justify-content:center;font-weight:500;font-size:13px;flex-shrink:0">'
+    +(type==='Boulder'?circuit[0]:grade)+'</div>'
+    +'<div><p style="font-weight:500;font-size:15px">'+label+' audit</p>'
+    +'<p style="font-size:12px;color:var(--text-secondary)">'+setter+' \u00b7 '+date+'</p></div></div>'
+    +'<div class="stat-grid">'
+    +'<div class="stat-cell"><p>Climbs assessed</p><p>'+count+'</p></div>'
+    +'<div class="stat-cell"><p>Avg quality</p><p>'+avg+'<span style="font-size:14px;color:var(--text-secondary)">/5</span></p></div>'
+    +'</div></div>';
+
+  // Circuit assessment
+  h += '<div class="summary-card">'
+    +'<p class="section-label" style="margin-bottom:8px">Circuit assessment</p>'
+    +[['Grading consistency',cons],['Accessibility',acc],['Movement variety',variety],['Hold diversity',holds]].map(function(pair){
+      return '<div class="summary-row"><span style="color:var(--text-secondary)">'+pair[0]+'</span>'
+             +'<span style="font-weight:500">'+( pair[1]||'\u2014')+'</span></div>';
+    }).join('')
+    +(missing.length?'<div style="margin-top:8px"><p style="font-size:12px;color:var(--text-secondary);margin-bottom:5px">Missing from circuit</p>'
+      +'<div class="chip-wrap">'+missing.map(function(m){return '<span class="chip">'+m+'</span>';}).join('')+'</div></div>':'')
+    +(circNotes?'<p style="font-size:13px;color:var(--text-secondary);margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)">'+circNotes+'</p>':'')
+    +'</div>';
+
+  // Favourites
+  if(favs.length){
+    h += '<div class="summary-card"><p class="section-label" style="margin-bottom:8px">Favourites <span class="pill fav">'
+      +'<i class="ti ti-star" aria-hidden="true"></i> '+favs.length+'</span></p>'
+      +favs.map(function(c){ return '<div class="summary-row"><span>Climb '+c.id+(c.location?' \u2014 '+c.location:'')+'</span>'
+        +'<span style="color:#EF9F27">'+'&#9733;'.repeat(c.quality)+'</span></div>'; }).join('')+'</div>';
+  }
+
+  // Outliers
+  if(easy.length||hard.length){
+    h += '<div class="summary-card"><p class="section-label" style="margin-bottom:8px">Outliers</p>'
+      +easy.map(function(c){ return '<div class="summary-row"><span>Climb '+c.id+(c.location?' \u2014 '+c.location:'')+'</span>'
+        +'<span class="pill easy">Too easy</span></div>'
+        +(c.notes?'<p style="font-size:12px;color:var(--text-secondary);padding:3px 0 6px">'+c.notes+'</p>':''); }).join('')
+      +hard.map(function(c){ return '<div class="summary-row"><span>Climb '+c.id+(c.location?' \u2014 '+c.location:'')+'</span>'
+        +'<span class="pill hard">Too hard</span></div>'
+        +(c.notes?'<p style="font-size:12px;color:var(--text-secondary);padding:3px 0 6px">'+c.notes+'</p>':''); }).join('')
+      +'</div>';
+  }
+
+  // Safety
+  if(safe.length){
+    h += '<div class="summary-card safety-card"><p class="section-label" style="margin-bottom:8px;color:var(--danger-text)">'
+      +'<i class="ti ti-alert-triangle" aria-hidden="true"></i> Safety concerns \u2014 '+safe.length+' climb'+(safe.length>1?'s':'')+'</p>'
+      +safe.map(function(c){ return '<div class="summary-row"><span>Climb '+c.id+(c.location?' \u2014 '+c.location:'')+'</span>'
+        +'<div class="chip-wrap">'+c.safety.map(function(s){
+          return '<span class="chip" style="background:var(--danger-bg);color:var(--danger-text)">'+s+'</span>';
+        }).join('')+'</div></div>'; }).join('')+'</div>';
+  }
+
+  // All climbs
+  h += '<div class="summary-card"><p class="section-label" style="margin-bottom:8px">All climbs</p>'
+    +climbs.map(function(c){
+      return '<div style="padding:8px 0;border-bottom:0.5px solid var(--border)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center">'
+        +'<span style="font-size:13px;font-weight:500">Climb '+c.id+(c.location?' \u2014 '+c.location:'')+'</span>'
+        +'<span style="color:#EF9F27;font-size:13px">'+(c.quality?'&#9733;'.repeat(c.quality)+'&#9734;'.repeat(5-c.quality):'Not rated')+'</span></div>'
+        +(c.grading?'<span class="chip" style="margin-top:4px;display:inline-block">'+c.grading+'</span>':'')
+        +(c.movement.length?'<div class="chip-wrap" style="margin-top:4px">'+c.movement.map(function(m){return '<span class="chip">'+m+'</span>';}).join('')+'</div>':'')
+        +(c.notes?'<p style="font-size:12px;color:var(--text-secondary);margin-top:4px">'+c.notes+'</p>':'')
+        +'</div>';
+    }).join('')+'</div>';
+
+  document.getElementById('summary-content').innerHTML = h;
+}
+
+// ── Sheets endpoint ───────────────────────────────────
+var SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzQSNSJTfUVStjHpl_te3S-2OivfMe7gJ7YXOQRruBX4tmDdvWlrR7ryGzKoaRBJdq8Dw/exec';
+
+// ── Toast helper ──────────────────────────────────────
+function showToast(msg, duration){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, duration||2500);
+}
+
+// ── Export: save to Sheets + copy to clipboard ────────
+function exportAudit(){
+  collectClimbData();
+  var climbs=auditData.climbs, type=auditData.type, circuit=auditData.circuit, grade=auditData.grade,
+      setter=auditData.setter, date=auditData.date;
+  var cons=getActive('consistency-row'), acc=getActive('access-row'),
+      variety=getActive('variety-row'), holds=getActive('holds-row');
+  var missing=getMultiActive('missing-row');
+  var circNotes=document.getElementById('circuit-notes').value.trim();
+  var label = type==='Boulder' ? circuit+' circuit' : 'Grade '+grade+' routes';
+
+  // ── Build plain-text report ──
+  var txt = 'CLIMBING CIRCUIT AUDIT\n'+'='.repeat(30)+'\n'
+    +label.toUpperCase()+'\n'+setter+' \u00b7 '+date
+    +'\n\nCIRCUIT ASSESSMENT\n'+'-'.repeat(20)
+    +'\nGrading consistency: '+(cons||'\u2014')
+    +'\nAccessibility: '+(acc||'\u2014')
+    +'\nMovement variety: '+(variety||'\u2014')
+    +'\nHold diversity: '+(holds||'\u2014')
+    +'\nMissing from circuit: '+(missing.join(', ')||'None noted')
+    +(circNotes?'\nCircuit notes: '+circNotes:'')
+    +'\n\nCLIMBS\n'+'-'.repeat(20);
+  climbs.forEach(function(c){
+    txt += '\n\nClimb '+c.id+(c.location?' \u2014 '+c.location:'');
+    txt += '\nQuality: '+(c.quality ? c.quality+'/5' : 'Not rated');
+    if(c.grading)         txt += '\nGrading feel: '+c.grading;
+    if(c.movement.length) txt += '\nMovement: '+c.movement.join(', ');
+    if(c.holds.length)    txt += '\nHolds: '+c.holds.join(', ');
+    if(c.flags.length)    txt += '\nFlags: '+c.flags.join(', ');
+    if(c.safety.length)   txt += '\nSAFETY: '+c.safety.join(', ');
+    if(c.notes)           txt += '\nNotes: '+c.notes;
+  });
+
+  // ── Copy to clipboard ──
+  function doCopy(){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).catch(function(){ fallbackCopy(txt); });
+    } else {
+      fallbackCopy(txt);
+    }
+  }
+
+  // ── Build payload for Sheets ──
+  var payload = {
+    setter: setter,
+    date: date,
+    type: type,
+    circuit: type==='Boulder' ? circuit : 'Grade '+grade,
+    climbs: climbs,
+    circuitAssessment: {
+      consistency: cons,
+      accessibility: acc,
+      variety: variety,
+      holds: holds,
+      missing: missing,
+      notes: circNotes
+    }
+  };
+
+  // ── Disable button, show sending state ──
+  var btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader" aria-hidden="true"></i> Saving\u2026';
+
+  // ── POST to Apps Script ──
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(){
+    doCopy();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-cloud-upload" aria-hidden="true"></i> Save to Sheets';
+    showToast('\u2713 Saved to Sheets \u00b7 report copied', 3000);
+  })
+  .catch(function(err){
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-cloud-upload" aria-hidden="true"></i> Save to Sheets';
+    showToast('\u26a0 Sheets save failed \u2014 report copied to clipboard', 4000);
+    doCopy();
+    console.error('Sheets error:', err);
+  });
+}
+
+function fallbackCopy(txt){
+  var ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); }
+  catch(e){ console.warn('Copy failed'); }
+  document.body.removeChild(ta);
+}
+</script>
+</body>
+</html>
